@@ -4,8 +4,10 @@
 > Ekin Gülhan · Aziz Derin Ebil · Mert Hasan Aslan
 
 
-npx.cmd hardhat node
+npx.cmd hardhat node \newline
+
 npx.cmd hardhat run scripts/deploy.js --network localhost
+
 npm.cmd run frontend
 
 Go http://127.0.0.1:5173
