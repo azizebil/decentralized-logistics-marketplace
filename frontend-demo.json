@@ -1,0 +1,17 @@
+{
+  "registry": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+  "pool": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "deliveryId": "0x8021a258021c70a34eaf4b53920aadffca083a02b8805d946a1bbbc7e03cee5f",
+  "vault": "0xCafac3dD18aC6c6e92c921884f9E4176737C052c",
+  "seller": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+  "buyer": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+  "mailbox": "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65",
+  "courier": "0x976EA74026E726554dB657fA54763abd0C3a0aa9",
+  "winningBidIndex": 1,
+  "fundedEth": "0.15",
+  "pickupCode": "0x5049434b55502d44454d4f2d32303236",
+  "pickupNonce": "0x1eab7cca5ef8f542bf92969470d7da517d500053e9783733d5b75f8a61a54ea3",
+  "dropoffCode": "0x44524f504f46462d44454d4f2d32303236",
+  "dropoffNonce": "0xca42e5385f27aa10d74e852d3448258d4daee59e62413ddd9e1177d96b49cbd3",
+  "nextStep": "Open the frontend, press Connect, then use Buyer > Mailbox Dropoff > Confirm Delivery."
+}

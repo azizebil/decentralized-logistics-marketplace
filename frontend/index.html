@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DLM Console</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Decentralized Logistics Marketplace</p>
+        <h1>Client Console</h1>
+      </div>
+      <div class="connection">
+        <label>
+          RPC URL
+          <input id="rpcUrl" value="http://127.0.0.1:8545">
+        </label>
+        <button id="connectBtn" type="button">Connect</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel status-panel">
+        <div class="section-head">
+          <div>
+            <h2>Network</h2>
+            <p id="networkStatus">Disconnected</p>
+          </div>
+          <button id="refreshBtn" type="button">Refresh</button>
+        </div>
+        <div class="grid compact">
+          <label>
+            Registry
+            <input id="registryAddress" placeholder="0x...">
+          </label>
+          <label>
+            Staking pool
+            <input id="poolAddress" placeholder="0x...">
+          </label>
+          <label>
+            Delivery ID
+            <input id="deliveryId" placeholder="0x...">
+          </label>
+          <label>
+            Vault
+            <input id="vaultAddress" placeholder="0x...">
+          </label>
+        </div>
+      </section>
+
+      <section class="role-grid">
+        <article class="panel role-panel seller">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Seller</p>
+              <h2>Requests</h2>
+            </div>
+            <select id="sellerAccount" aria-label="Seller account"></select>
+          </div>
+          <p class="address" id="sellerAddress"></p>
+
+          <div class="subsection">
+            <h3>Open Delivery</h3>
+            <div class="grid">
+              <label>Value ETH <input id="sellerDeclared" value="1.0"></label>
+              <label>Max price ETH <input id="sellerMaxPrice" value="0.2"></label>
+              <label>Delivery deadline sec <input id="sellerMaxDeadline" value="3600"></label>
+              <label>Bid window sec <input id="sellerBidDeadline" value="600"></label>
+              <label>Buyer <input id="sellerBuyer" placeholder="0x..."></label>
+              <label>Mailbox <input id="sellerMailbox" placeholder="0x..."></label>
+              <label>Dispute window sec <input id="sellerDisputeWindow" value="300"></label>
+              <label>Salt <input id="sellerSalt" value="1"></label>
+            </div>
+            <label class="check"><input id="sellerPreferTrusted" type="checkbox" checked> Prefer trusted couriers</label>
+            <button id="openRequestBtn" type="button">Open Request</button>
+          </div>
+
+          <div class="subsection">
+            <h3>Codes & Bid Selection</h3>
+            <div class="button-row">
+              <button id="publishHashesBtn" type="button">Generate & Publish Hashes</button>
+              <button id="loadBidsBtn" type="button">Load Bids</button>
+            </div>
+            <div id="codeOutput" class="code-card"></div>
+            <div id="bidsList" class="list"></div>
+            <div class="inline-form">
+              <input id="acceptBidIndex" value="0" aria-label="Bid index">
+              <button id="acceptBidBtn" type="button">Accept Bid</button>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Agent Policy</h3>
+            <div class="grid">
+              <label>Agent <input id="agentAddress" placeholder="0x..."></label>
+              <label>Max price ETH <input id="agentMaxPrice" value="0.2"></label>
+              <label>Deadline buffer sec <input id="agentDeadlineBuffer" value="120"></label>
+              <label>Co-sign threshold ETH <input id="agentCosign" value="2.0"></label>
+            </div>
+            <button id="setAgentBtn" type="button">Set Agent</button>
+          </div>
+        </article>
+
+        <article class="panel role-panel courier">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Courier</p>
+              <h2>Pool & Bids</h2>
+            </div>
+            <select id="courierAccount" aria-label="Courier account"></select>
+          </div>
+          <p class="address" id="courierAddress"></p>
+
+          <div class="subsection">
+            <h3>Pool Membership</h3>
+            <div class="button-row">
+              <button id="admitCourierBtn" type="button">Admit With Operator</button>
+              <button id="capacityBtn" type="button">Check Capacity</button>
+            </div>
+            <div class="inline-form">
+              <input id="stakeEth" value="1.0" aria-label="Stake amount">
+              <button id="stakeBtn" type="button">Stake ETH</button>
+            </div>
+            <p id="capacityOutput" class="metric">Capacity: -</p>
+          </div>
+
+          <div class="subsection">
+            <h3>Place Bid</h3>
+            <div class="grid">
+              <label>Price ETH <input id="bidPrice" value="0.15"></label>
+              <label>Promised sec <input id="bidPromised" value="2400"></label>
+              <label>Reputation bps <input id="bidRep" value="9200"></label>
+              <label>Payout <input id="bidPayout" placeholder="defaults to courier"></label>
+            </div>
+            <button id="placeBidBtn" type="button">Place Bid</button>
+            <div class="inline-form">
+              <input id="withdrawBidIndex" value="0" aria-label="Bid index">
+              <button id="withdrawBidBtn" type="button">Withdraw Bid</button>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Pickup & Withdrawals</h3>
+            <div class="grid">
+              <label>Pickup code hex <input id="pickupCode" placeholder="0x..."></label>
+              <label>Pickup nonce <input id="pickupNonce" placeholder="0x..."></label>
+            </div>
+            <button id="pickupBtn" type="button">Record Pickup</button>
+            <div class="inline-form">
+              <input id="withdrawStakeEth" value="0.1" aria-label="Withdraw stake">
+              <button id="requestWithdrawBtn" type="button">Request Withdrawal</button>
+              <button id="finalizeWithdrawBtn" type="button">Finalize</button>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel role-panel buyer">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Buyer</p>
+              <h2>Vault</h2>
+            </div>
+            <select id="buyerAccount" aria-label="Buyer account"></select>
+          </div>
+          <p class="address" id="buyerAddress"></p>
+
+          <div class="subsection">
+            <h3>Escrow</h3>
+            <div class="inline-form">
+              <input id="fundEth" value="0.15" aria-label="Fund amount">
+              <button id="fundBtn" type="button">Fund Vault</button>
+            </div>
+            <div class="button-row">
+              <button id="vaultStatusBtn" type="button">Vault Status</button>
+              <button id="disputeBtn" type="button">Raise Dispute</button>
+              <button id="cancelVaultBtn" type="button">Cancel Before Pickup</button>
+            </div>
+          </div>
+
+          <div class="subsection">
+            <h3>Mailbox Dropoff</h3>
+            <select id="mailboxAccount" aria-label="Mailbox account"></select>
+            <p class="address" id="mailboxAddress"></p>
+            <div class="grid">
+              <label>Dropoff code hex <input id="dropoffCode" placeholder="0x..."></label>
+              <label>Dropoff nonce <input id="dropoffNonce" placeholder="0x..."></label>
+            </div>
+            <button id="confirmDeliveryBtn" type="button">Confirm Delivery</button>
+            <button id="finalizeDeliveredBtn" type="button">Finalize Delivered</button>
+          </div>
+
+          <div class="subsection">
+            <h3>Timeouts</h3>
+            <div class="button-row">
+              <button id="refundTimeoutBtn" type="button">Refund Pickup Timeout</button>
+              <button id="slashTimeoutBtn" type="button">Slash Dropoff Timeout</button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <h2>Live Data</h2>
+            <p>Recent requests, selected request, vault state, and transaction log.</p>
+          </div>
+          <button id="clearLogBtn" type="button">Clear Log</button>
+        </div>
+        <div class="data-grid">
+          <div>
+            <h3>Requests</h3>
+            <div id="requestsList" class="list"></div>
+          </div>
+          <div>
+            <h3>Details</h3>
+            <pre id="detailsOutput">No request selected.</pre>
+          </div>
+          <div>
+            <h3>Log</h3>
+            <pre id="logOutput"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/vendor/ethers.umd.min.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>

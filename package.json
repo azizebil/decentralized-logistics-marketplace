@@ -9,6 +9,8 @@
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
     "demo": "hardhat run scripts/demo-end-to-end.js --network localhost",
+    "demo:frontend": "hardhat run scripts/frontend-demo.js --network localhost",
+    "frontend": "node frontend/server.js",
     "seller-agent": "node agents/seller_agent.js",
     "mailbox-agent": "node agents/mailbox_agent.js",
     "seller-cli": "node clients/seller/seller_cli.js",
