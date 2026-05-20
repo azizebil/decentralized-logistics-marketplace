@@ -57,6 +57,22 @@ through a full delivery (open → bid → agent-accept → fund → pickup →
 mailbox-confirm → finalize), and prints the staking pool invariant at every
 step.
 
+### Frontend demo
+
+The browser UI is a Vite app that uses the compiled Hardhat artifacts directly.
+Run a local chain in one terminal and the frontend in another:
+
+```bash
+npm run node
+npm run frontend
+```
+
+Open `http://localhost:5173`, click **Demo accounts**, then **Deploy stack**.
+The **Run happy path** button executes the same end-to-end flow through the UI:
+request creation, hash locking, courier bids, seller-agent ranking, vault
+funding, pickup, mailbox confirmation, and finalization. The UI can also attach
+to addresses deployed by `npm run deploy:local`.
+
 ### Note on the Solidity compiler
 
 `binaries.soliditylang.org` is blocked in this sandbox, so `hardhat.config.js`
