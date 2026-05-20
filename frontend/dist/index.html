@@ -3,14 +3,15 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>DLM Console</title>
-    <link rel="stylesheet" href="/styles.css">
+    <title>DLM Agentic Delivery Console</title>
+    <link rel="stylesheet" crossorigin href="/assets/index-BTEdTfpy.css">
   </head>
   <body>
     <header class="topbar">
       <div>
         <p class="eyebrow">Decentralized Logistics Marketplace</p>
-        <h1>Client Console</h1>
+        <h1>Agentic Delivery Console</h1>
+        <p class="subtitle">Seller agent / pooled couriers / buyer mailbox / escrow vault</p>
       </div>
       <div class="connection">
         <label>
@@ -47,26 +48,45 @@
             Vault
             <input id="vaultAddress" placeholder="0x...">
           </label>
-          <label>
-            Pool operator key
-            <select id="operatorAccount" aria-label="Pool operator account"></select>
-          </label>
-          <label>
-            Agent key
-            <select id="agentAccount" aria-label="Seller agent account"></select>
-          </label>
         </div>
       </section>
 
-      <section class="panel flow-panel">
-        <div class="section-head">
-          <div>
-            <h2>Delivery Flow</h2>
-            <p id="flowCaption">No delivery selected.</p>
-          </div>
+      <section class="flow-panel" aria-label="Delivery lifecycle">
+        <div id="stepRequest" class="flow-step">
+          <span>01</span>
+          <strong>Request</strong>
+          <small>Open + code hashes</small>
         </div>
-        <div id="lifecycleSteps" class="flow-steps"></div>
-        <div id="boundaryGrid" class="boundary-grid"></div>
+        <div id="stepBid" class="flow-step">
+          <span>02</span>
+          <strong>Bids</strong>
+          <small>Pool capacity checked</small>
+        </div>
+        <div id="stepAgent" class="flow-step">
+          <span>03</span>
+          <strong>Agent Accept</strong>
+          <small>r/(t*p) policy</small>
+        </div>
+        <div id="stepFund" class="flow-step">
+          <span>04</span>
+          <strong>Vault Funded</strong>
+          <small>Buyer escrow</small>
+        </div>
+        <div id="stepPickup" class="flow-step">
+          <span>05</span>
+          <strong>Pickup</strong>
+          <small>Bound code proof</small>
+        </div>
+        <div id="stepMailbox" class="flow-step">
+          <span>06</span>
+          <strong>Mailbox</strong>
+          <small>Dropoff confirm</small>
+        </div>
+        <div id="stepFinal" class="flow-step">
+          <span>07</span>
+          <strong>Finalize</strong>
+          <small>Payout/refund/slash</small>
+        </div>
       </section>
 
       <section class="role-grid">
@@ -74,7 +94,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Seller</p>
-              <h2>Requests</h2>
+              <h2>Request & Agent</h2>
             </div>
             <select id="sellerAccount" aria-label="Seller account"></select>
           </div>
@@ -84,19 +104,34 @@
             <h3>Open Delivery</h3>
             <div class="grid">
               <label>Declared value ETH <input id="sellerDeclared" value="1.0"></label>
-              <label>Courier budget ETH <input id="sellerMaxPrice" value="0.2"></label>
-              <label>Max arrival sec <input id="sellerMaxDeadline" value="3600"></label>
+              <label>Max courier fee ETH <input id="sellerMaxPrice" value="0.2"></label>
+              <label>Delivery deadline sec <input id="sellerMaxDeadline" value="3600"></label>
               <label>Bid window sec <input id="sellerBidDeadline" value="600"></label>
-              <label>Buyer funding key <input id="sellerBuyer" placeholder="0x..."></label>
-              <label>Mailbox signing key <input id="sellerMailbox" placeholder="0x..."></label>
+              <label>Buyer <input id="sellerBuyer" placeholder="0x..."></label>
+              <label>Mailbox <input id="sellerMailbox" placeholder="0x..."></label>
               <label>Dispute window sec <input id="sellerDisputeWindow" value="300"></label>
               <label>Salt <input id="sellerSalt" value="1"></label>
             </div>
-            <label class="check"><input id="sellerPreferTrusted" type="checkbox" checked> Prefer trusted couriers</label>
-            <div id="sellerPolicyPreview" class="policy-strip"></div>
+            <label class="check"><input id="sellerPreferTrusted" type="checkbox" checked> Prefer trusted couriers in score</label>
+            <button id="openRequestBtn" type="button">Open Request</button>
+          </div>
+
+          <div class="subsection">
+            <h3>Agent Policy</h3>
+            <label>
+              Session key account
+              <select id="agentAccount" aria-label="Agent account"></select>
+            </label>
+            <p class="address" id="agentAccountAddress"></p>
+            <div class="grid">
+              <label>Agent <input id="agentAddress" placeholder="0x..."></label>
+              <label>Max price ETH <input id="agentMaxPrice" value="0.2"></label>
+              <label>Deadline buffer sec <input id="agentDeadlineBuffer" value="120"></label>
+              <label>Co-sign threshold ETH <input id="agentCosign" value="2.0"></label>
+            </div>
             <div class="button-row">
-              <button id="openRequestBtn" type="button">Open Request</button>
-              <button id="cancelRequestBtn" type="button">Cancel Open Request</button>
+              <button id="useAgentBtn" type="button">Use Session Key</button>
+              <button id="setAgentBtn" type="button">Set Agent Policy</button>
             </div>
           </div>
 
@@ -104,30 +139,17 @@
             <h3>Codes & Bid Selection</h3>
             <div class="button-row">
               <button id="publishHashesBtn" type="button">Generate & Publish Hashes</button>
-              <button id="loadBidsBtn" type="button">Load Bids</button>
-              <button id="rankBidsBtn" type="button">Rank Bids</button>
+              <button id="loadBidsBtn" type="button">Load & Score Bids</button>
+              <button id="rankBidsBtn" type="button">Agent Rank & Fill</button>
             </div>
             <div id="codeOutput" class="code-card"></div>
+            <div id="agentDecisionOutput" class="decision-card"></div>
             <div id="bidsList" class="list"></div>
-            <div id="rankingOutput" class="ranking-list"></div>
             <div class="inline-form">
               <input id="acceptBidIndex" value="0" aria-label="Bid index">
-              <button id="acceptBidBtn" type="button">Accept Bid</button>
-              <button id="acceptAgentBtn" type="button">Accept With Agent</button>
+              <button id="acceptBidBtn" type="button">Accept as Seller</button>
+              <button id="acceptBidAgentBtn" type="button">Accept as Agent</button>
             </div>
-          </div>
-
-          <div class="subsection">
-            <h3>Agent Policy</h3>
-            <p class="address" id="agentWalletAddress"></p>
-            <div class="grid">
-              <label>Session key address <input id="agentAddress" placeholder="0x..."></label>
-              <label>Max price ETH <input id="agentMaxPrice" value="0.2"></label>
-              <label>Deadline buffer sec <input id="agentDeadlineBuffer" value="120"></label>
-              <label>Co-sign threshold ETH <input id="agentCosign" value="2.0"></label>
-            </div>
-            <div id="agentPolicyOutput" class="policy-strip"></div>
-            <button id="setAgentBtn" type="button">Set Agent</button>
           </div>
         </article>
 
@@ -143,6 +165,11 @@
 
           <div class="subsection">
             <h3>Pool Membership</h3>
+            <label>
+              Pool operator account
+              <select id="operatorAccount" aria-label="Pool operator account"></select>
+            </label>
+            <p class="address" id="operatorAddress"></p>
             <div class="button-row">
               <button id="admitCourierBtn" type="button">Admit With Operator</button>
               <button id="capacityBtn" type="button">Check Capacity</button>
@@ -152,7 +179,6 @@
               <button id="stakeBtn" type="button">Stake ETH</button>
             </div>
             <p id="capacityOutput" class="metric">Capacity: -</p>
-            <div id="poolOutput" class="metric-grid"></div>
           </div>
 
           <div class="subsection">
@@ -163,7 +189,6 @@
               <label>Reputation bps <input id="bidRep" value="9200"></label>
               <label>Payout <input id="bidPayout" placeholder="defaults to courier"></label>
             </div>
-            <div id="bidGuardOutput" class="policy-strip"></div>
             <button id="placeBidBtn" type="button">Place Bid</button>
             <div class="inline-form">
               <input id="withdrawBidIndex" value="0" aria-label="Bid index">
@@ -181,7 +206,7 @@
             <div class="inline-form">
               <input id="withdrawStakeEth" value="0.1" aria-label="Withdraw stake">
               <button id="requestWithdrawBtn" type="button">Request Withdrawal</button>
-              <button id="finalizeWithdrawBtn" type="button">Finalize Stake Withdrawal</button>
+              <button id="finalizeWithdrawBtn" type="button">Finalize</button>
             </div>
           </div>
         </article>
@@ -190,7 +215,7 @@
           <div class="section-head">
             <div>
               <p class="eyebrow">Buyer</p>
-              <h2>Buyer & Mailbox</h2>
+              <h2>Vault & Mailbox</h2>
             </div>
             <select id="buyerAccount" aria-label="Buyer account"></select>
           </div>
@@ -205,22 +230,23 @@
             <div class="button-row">
               <button id="vaultStatusBtn" type="button">Vault Status</button>
               <button id="disputeBtn" type="button">Raise Dispute</button>
-              <button id="resolveCourierBtn" type="button">Resolve For Courier</button>
-              <button id="resolveBuyerBtn" type="button">Resolve For Buyer</button>
               <button id="cancelVaultBtn" type="button">Cancel Before Pickup</button>
             </div>
           </div>
 
           <div class="subsection">
             <h3>Mailbox Dropoff</h3>
-            <select id="mailboxAccount" aria-label="Mailbox account"></select>
+            <label>
+              Mailbox secure-element account
+              <select id="mailboxAccount" aria-label="Mailbox account"></select>
+            </label>
             <p class="address" id="mailboxAddress"></p>
             <div class="grid">
               <label>Dropoff code hex <input id="dropoffCode" placeholder="0x..."></label>
               <label>Dropoff nonce <input id="dropoffNonce" placeholder="0x..."></label>
             </div>
             <button id="confirmDeliveryBtn" type="button">Confirm Delivery</button>
-            <button id="finalizeDeliveredBtn" type="button">Finalize Delivery Payout</button>
+            <button id="finalizeDeliveredBtn" type="button">Finalize Delivered</button>
           </div>
 
           <div class="subsection">
@@ -237,7 +263,7 @@
         <div class="section-head">
           <div>
             <h2>Live Data</h2>
-            <p>Recent requests, selected request, vault state, and transaction log.</p>
+            <p>Registry request, vault state, and transaction log.</p>
           </div>
           <button id="clearLogBtn" type="button">Clear Log</button>
         </div>
@@ -248,13 +274,32 @@
           </div>
           <div>
             <h3>Details</h3>
-            <div id="detailsOutput" class="details-empty">No request selected.</div>
+            <pre id="detailsOutput">No request selected.</pre>
           </div>
           <div>
             <h3>Log</h3>
-            <div id="logOutput" class="timeline"></div>
+            <pre id="logOutput"></pre>
           </div>
         </div>
+      </section>
+
+      <section class="guard-grid" aria-label="Threat model controls">
+        <article>
+          <strong>Agent boundary</strong>
+          <span>Session key, price ceiling, deadline buffer, co-sign threshold</span>
+        </article>
+        <article>
+          <strong>Code binding</strong>
+          <span>keccak256(code || deliveryId || nonce)</span>
+        </article>
+        <article>
+          <strong>Pool invariant</strong>
+          <span>activeValue &lt;= totalStake, member reservation cap</span>
+        </article>
+        <article>
+          <strong>Mailbox boundary</strong>
+          <span>Separate mailbox key, dispute window before payout</span>
+        </article>
       </section>
     </main>
 
