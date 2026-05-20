@@ -1,0 +1,28 @@
+{
+  "name": "decentralized-logistics-marketplace",
+  "version": "1.0.0",
+  "description": "Phase-2 prototype: permissionless logistics with LLM seller agent, smart mailbox, and pooled-stake couriers on EVM.",
+  "private": true,
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "demo": "hardhat run scripts/demo-end-to-end.js --network localhost",
+    "seller-agent": "node agents/seller_agent.js",
+    "mailbox-agent": "node agents/mailbox_agent.js",
+    "seller-cli": "node clients/seller/seller_cli.js",
+    "courier-cli": "node clients/courier/courier_cli.js",
+    "buyer-cli": "node clients/buyer/buyer_cli.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "chai": "^4.3.10",
+    "hardhat": "^2.22.0",
+    "solc": "^0.8.24"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.0"
+  }
+}
