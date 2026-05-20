@@ -3,6 +3,13 @@
 > Phase-3 implementation — CS438/SEC532, Spring 2026
 > Ekin Gülhan · Aziz Derin Ebil · Mert Hasan Aslan
 
+
+npx.cmd hardhat node
+npx.cmd hardhat run scripts/deploy.js --network localhost
+npm.cmd run frontend
+
+Go http://127.0.0.1:5173
+
 A trust-minimised, permissionless logistics marketplace. Sellers post delivery
 requests, couriers bid against shared staking pools, and a buyer's *Magic
 Mailbox* (a hardware-signing agent) releases escrowed funds only after physical
