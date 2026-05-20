@@ -151,7 +151,7 @@
             <div class="inline-form">
               <input id="withdrawStakeEth" value="0.1" aria-label="Withdraw stake">
               <button id="requestWithdrawBtn" type="button">Request Withdrawal</button>
-              <button id="finalizeWithdrawBtn" type="button">Finalize</button>
+              <button id="finalizeWithdrawBtn" type="button">Finalize Stake Withdrawal</button>
             </div>
           </div>
         </article>
@@ -188,7 +188,7 @@
               <label>Dropoff nonce <input id="dropoffNonce" placeholder="0x..."></label>
             </div>
             <button id="confirmDeliveryBtn" type="button">Confirm Delivery</button>
-            <button id="finalizeDeliveredBtn" type="button">Finalize Delivered</button>
+            <button id="finalizeDeliveredBtn" type="button">Finalize Delivery Payout</button>
           </div>
 
           <div class="subsection">
@@ -216,11 +216,11 @@
           </div>
           <div>
             <h3>Details</h3>
-            <pre id="detailsOutput">No request selected.</pre>
+            <div id="detailsOutput" class="details-empty">No request selected.</div>
           </div>
           <div>
             <h3>Log</h3>
-            <pre id="logOutput"></pre>
+            <div id="logOutput" class="timeline"></div>
           </div>
         </div>
       </section>

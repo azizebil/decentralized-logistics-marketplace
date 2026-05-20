@@ -16,7 +16,7 @@ async function main() {
   const StakingPool = await ethers.getContractFactory("StakingPool");
   const pool = await StakingPool.deploy(
     operator.address,
-    DAY,        // 1-day withdrawal delay
+    0,        // 1-day withdrawal delay
     20000       // 200 % per-member cap (i.e. carry up to 2x your own stake)
   );
   await pool.waitForDeployment();

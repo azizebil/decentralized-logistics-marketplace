@@ -263,6 +263,154 @@ main {
   margin-bottom: 3px;
 }
 
+.details-empty {
+  min-height: 180px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: #fbfcf8;
+  padding: 18px;
+  text-align: center;
+}
+
+.summary-stack,
+.timeline {
+  display: grid;
+  gap: 10px;
+}
+
+.summary-card,
+.timeline-entry {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fbfcf8;
+  padding: 12px;
+}
+
+.summary-card h4,
+.timeline-entry strong {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid #e7ebe1;
+  font-size: 0.86rem;
+}
+
+.summary-row:first-of-type {
+  border-top: 0;
+}
+
+.summary-row span:first-child {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.summary-row span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.status-pill {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 26px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.status-open,
+.status-funded {
+  background: #e8f3ff;
+  color: #184f90;
+}
+
+.status-assigned,
+.status-pickedup {
+  background: #fff2dc;
+  color: #8a4b05;
+}
+
+.status-delivered,
+.status-finalized {
+  background: #e5f7ee;
+  color: #136c43;
+}
+
+.status-cancelled,
+.status-refunded,
+.status-failed,
+.status-error {
+  background: #fff0ed;
+  color: var(--danger);
+}
+
+.timeline {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.timeline:empty::before {
+  content: "No activity yet.";
+  display: block;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  padding: 18px;
+  text-align: center;
+}
+
+.timeline-entry {
+  display: grid;
+  gap: 4px;
+  line-height: 1.35;
+}
+
+.timeline-entry time {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 750;
+}
+
+.timeline-entry p {
+  color: #46515c;
+  font-size: 0.84rem;
+}
+
+.secret-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.secret-grid div {
+  display: grid;
+  gap: 3px;
+}
+
+.secret-grid span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.secret-grid code {
+  border-radius: 5px;
+  background: #eef2ea;
+  padding: 6px;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+}
+
 .data-grid {
   display: grid;
   grid-template-columns: 1.1fr 1fr 1fr;
@@ -307,5 +455,10 @@ main {
 
   .inline-form input {
     max-width: none;
+  }
+
+  .summary-row {
+    grid-template-columns: 1fr;
+    gap: 3px;
   }
 }

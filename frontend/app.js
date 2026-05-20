@@ -56,13 +56,17 @@ const state = {
   provider: null,
   registry: null,
   pool: null,
-  requests: []
+  requests: [],
+  selectedRequest: null,
+  selectedVault: null
 };
 
-function log(message, data) {
+function log(message, detail, kind = "info") {
   const stamp = new Date().toLocaleTimeString();
-  const suffix = data === undefined ? "" : `\n${format(data)}`;
-  $("logOutput").textContent = `[${stamp}] ${message}${suffix}\n\n${$("logOutput").textContent}`;
+  const entry = document.createElement("div");
+  entry.className = `timeline-entry ${kind === "error" ? "status-error" : ""}`;
+  entry.innerHTML = `<time>${escapeHtml(stamp)}</time><strong>${escapeHtml(message)}</strong>${detail ? `<p>${escapeHtml(detail)}</p>` : ""}`;
+  $("logOutput").prepend(entry);
 }
 
 function format(value) {
@@ -72,7 +76,7 @@ function format(value) {
 function fail(error) {
   console.error(error);
   const reason = error?.shortMessage || error?.reason || error?.message || String(error);
-  log(`Error: ${reason}`);
+  log("Something went wrong", reason, "error");
 }
 
 function wallet(index) {
@@ -139,9 +143,9 @@ async function loadDeployment() {
     const deployment = await response.json();
     $("registryAddress").value = deployment.contracts?.MarketplaceRegistry || "";
     $("poolAddress").value = deployment.contracts?.StakingPool || "";
-    log("Loaded deployment.json", deployment);
+    log("Deployment loaded", "Registry and staking pool addresses are ready.");
   } catch {
-    log("No deployment.json yet. Deploy contracts or paste addresses.");
+    log("Deployment not found", "Deploy contracts or paste the registry and pool addresses.");
   }
 }
 
@@ -160,9 +164,9 @@ async function loadDemoState() {
     $("fundEth").value = demo.fundedEth || $("fundEth").value;
     localStorage.setItem("dlm.deliveryId", $("deliveryId").value);
     localStorage.setItem("dlm.vaultAddress", $("vaultAddress").value);
-    log("Loaded frontend-demo.json", demo);
+    log("Demo loaded", `Delivery ${short(demo.deliveryId)} is ready to inspect.`);
   } catch {
-    log("No frontend demo state found yet.");
+    log("No demo loaded", "Run demo:frontend to prefill a sample delivery.");
   }
 }
 
@@ -170,14 +174,15 @@ async function connect() {
   state.provider = new ethers.JsonRpcProvider($("rpcUrl").value.trim());
   const network = await state.provider.getNetwork();
   $("networkStatus").textContent = `Connected to chain ${network.chainId}`;
+  log("Connected", `Using local chain ${network.chainId}.`);
   updateAddresses();
   await refreshAll();
 }
 
 async function waitTx(tx, label) {
-  log(`${label} submitted`, { hash: tx.hash });
+  log(`${label} started`, `Transaction ${short(tx.hash)} is waiting for confirmation.`);
   const receipt = await tx.wait();
-  log(`${label} confirmed`, { hash: receipt.hash, block: receipt.blockNumber });
+  log(`${label} complete`, `Confirmed in block ${receipt.blockNumber}.`);
   await refreshAll(false);
   return receipt;
 }
@@ -230,7 +235,7 @@ async function refreshDetails() {
   const readRegistry = new ethers.Contract(regAddr, REGISTRY_ABI, state.provider);
   const r = await readRegistry.getRequest(id);
   setVaultAddress(r.vault);
-  const out = {
+  state.selectedRequest = {
     deliveryId: id,
     seller: r.seller,
     buyer: r.buyer,
@@ -248,7 +253,7 @@ async function refreshDetails() {
     pickupHash: r.pickupHash,
     dropoffHash: r.dropoffHash
   };
-  $("detailsOutput").textContent = format(out);
+  renderDetails();
   await refreshVaultStatus(false);
 }
 
@@ -265,7 +270,7 @@ async function refreshVaultStatus(writeLog = true) {
     v.pickupDeadline(),
     v.dropoffDeadline()
   ]);
-  const out = {
+  state.selectedVault = {
     vault: addr,
     state: VAULT_STATES[Number(snap.s)],
     funded: snap.isFunded,
@@ -279,14 +284,14 @@ async function refreshVaultStatus(writeLog = true) {
     pickupDeadline: dateOf(pickupDeadline),
     dropoffDeadline: dateOf(dropoffDeadline)
   };
-  if (writeLog) log("Vault status", out);
-  $("detailsOutput").textContent = `${$("detailsOutput").textContent}\n\nVault:\n${format(out)}`;
+  if (writeLog) log("Vault checked", `Status is ${deliveryProgressLabel(state.selectedVault)}; balance is ${state.selectedVault.balance}.`);
+  renderDetails();
 }
 
 async function refreshAll(writeLog = true) {
   await refreshRequests();
   await refreshDetails();
-  if (writeLog) log("Refreshed frontend data");
+  if (writeLog) log("Data refreshed", "Requests and vault status are up to date.");
 }
 
 async function openRequest() {
@@ -331,7 +336,16 @@ async function publishHashes() {
   $("pickupNonce").value = codes.nonceP;
   $("dropoffCode").value = codes.dropoffCode;
   $("dropoffNonce").value = codes.nonceD;
-  $("codeOutput").innerHTML = `<div class="item"><strong>Codes saved in this browser</strong><pre>${format(codes)}</pre></div>`;
+  $("codeOutput").innerHTML = `
+    <div class="item">
+      <strong>Pickup and dropoff secrets generated</strong>
+      <div class="secret-grid">
+        <div><span>Pickup code</span><code>${escapeHtml(codes.pickupCode)}</code></div>
+        <div><span>Pickup nonce</span><code>${escapeHtml(codes.nonceP)}</code></div>
+        <div><span>Dropoff code</span><code>${escapeHtml(codes.dropoffCode)}</code></div>
+        <div><span>Dropoff nonce</span><code>${escapeHtml(codes.nonceD)}</code></div>
+      </div>
+    </div>`;
   await waitTx(await registry("sellerAccount").publishHashes(id, pickupHash, dropoffHash), "Publish hashes");
 }
 
@@ -348,7 +362,7 @@ async function loadBids() {
       Reputation: ${Number(bid.reputationE4) / 100}%`;
     $("bidsList").appendChild(el);
   });
-  log(`Loaded ${bids.length} bids`);
+  log("Bids loaded", `${bids.length} bid${bids.length === 1 ? "" : "s"} found for this delivery.`);
 }
 
 async function acceptBid() {
@@ -389,16 +403,10 @@ async function capacity() {
   ]);
   const text = `Capacity: ${ethers.formatEther(free)} ETH`;
   $("capacityOutput").textContent = text;
-  log("Courier capacity", {
-    courier: addr,
-    isMember: member.isMember,
-    contribution: `${ethers.formatEther(member.contribution)} ETH`,
-    reserved: `${ethers.formatEther(member.reserved)} ETH`,
-    free: `${ethers.formatEther(free)} ETH`,
-    poolTotal: `${ethers.formatEther(total)} ETH`,
-    activeValue: `${ethers.formatEther(active)} ETH`,
-    memberCapBps: cap.toString()
-  });
+  log(
+    "Courier capacity checked",
+    `${member.isMember ? "Member" : "Not a pool member"}; free capacity ${ethers.formatEther(free)} ETH, staked ${ethers.formatEther(member.contribution)} ETH, reserved ${ethers.formatEther(member.reserved)} ETH. Pool total ${ethers.formatEther(total)} ETH, active ${ethers.formatEther(active)} ETH, member cap ${Number(cap) / 100}%.`
+  );
 }
 
 async function placeBid() {
@@ -443,6 +451,93 @@ async function callVault(role, method, label) {
 
 function short(value) {
   return value ? `${value.slice(0, 10)}...${value.slice(-6)}` : "";
+}
+
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  }[char]));
+}
+
+function statusClass(value) {
+  return `status-${String(value || "").replace(/\s+/g, "").toLowerCase()}`;
+}
+
+function statusPill(value) {
+  return `<span class="status-pill ${statusClass(value)}">${escapeHtml(value)}</span>`;
+}
+
+function deliveryProgressLabel(vaultState) {
+  if (!vaultState) return "Not assigned yet";
+  if (vaultState.finalized) return "Paid out";
+  if (vaultState.state === "Funded" && !vaultState.funded) return "Waiting for buyer funding";
+  if (vaultState.state === "Funded") return "Ready for pickup";
+  if (vaultState.state === "PickedUp") return "Package picked up";
+  if (vaultState.state === "Delivered") return "Delivered, waiting for payout";
+  if (vaultState.state === "Refunded") return "Refunded";
+  if (vaultState.state === "Failed") return "Failed";
+  return vaultState.state;
+}
+
+function row(label, value) {
+  return `<div class="summary-row"><span>${escapeHtml(label)}</span><span>${value}</span></div>`;
+}
+
+function textRow(label, value) {
+  return row(label, escapeHtml(value));
+}
+
+function card(title, rows) {
+  return `<section class="summary-card"><h4>${escapeHtml(title)}</h4>${rows.join("")}</section>`;
+}
+
+function renderDetails() {
+  const request = state.selectedRequest;
+  const vaultState = state.selectedVault;
+  if (!request && !vaultState) {
+    $("detailsOutput").className = "details-empty";
+    $("detailsOutput").textContent = "No request selected.";
+    return;
+  }
+
+  $("detailsOutput").className = "summary-stack";
+  const cards = [];
+  if (request) {
+    const progress = vaultState ? deliveryProgressLabel(vaultState) : request.stage;
+    cards.push(card("Selected Delivery", [
+      row("Progress", statusPill(progress)),
+      textRow("Delivery", short(request.deliveryId)),
+      textRow("Value", request.declaredValue),
+      textRow("Max courier fee", request.maxPrice),
+      textRow("Bids close", request.bidDeadline),
+      textRow("Delivery due", request.maxDeadline),
+      textRow("Accepted bid", request.stage === "Open" ? "Not selected yet" : `Bid ${request.acceptedBidIndex}`),
+      textRow("Trusted courier", request.preferTrusted ? "Preferred" : "Not required")
+    ]));
+    cards.push(card("People", [
+      textRow("Seller", short(request.seller)),
+      textRow("Buyer", short(request.buyer)),
+      textRow("Mailbox", short(request.mailbox)),
+      textRow("Pool", short(request.pool))
+    ]));
+  }
+  if (vaultState) {
+    cards.push(card("Vault", [
+      row("Escrow", statusPill(deliveryProgressLabel(vaultState))),
+      textRow("Funded", vaultState.funded ? "Yes" : "No"),
+      textRow("Disputed", vaultState.disputed ? "Yes" : "No"),
+      textRow("Balance", vaultState.balance),
+      textRow("Courier fee", vaultState.courierFee),
+      textRow("Courier", short(vaultState.courier)),
+      textRow("Pickup deadline", vaultState.pickupDeadline),
+      textRow("Dropoff deadline", vaultState.dropoffDeadline)
+    ]));
+  }
+  $("detailsOutput").innerHTML = cards.join("");
 }
 
 function dateOf(value) {
@@ -500,7 +595,7 @@ async function init() {
   bind("finalizeDeliveredBtn", () => callVault("buyerAccount", "finalizeDelivered", "Finalize delivered"));
   bind("refundTimeoutBtn", () => callVault("buyerAccount", "refundOnPickupTimeout", "Refund pickup timeout"));
   bind("slashTimeoutBtn", () => callVault("buyerAccount", "slashOnDropoffTimeout", "Slash dropoff timeout"));
-  $("clearLogBtn").addEventListener("click", () => { $("logOutput").textContent = ""; });
+  $("clearLogBtn").addEventListener("click", () => { $("logOutput").innerHTML = ""; });
 
   await loadDeployment();
   await loadDemoState();
