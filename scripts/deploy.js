@@ -9,7 +9,9 @@ const { ethers } = require("hardhat");
 const DAY = 24 * 60 * 60;
 
 async function main() {
-  const [deployer, operator] = await ethers.getSigners();
+  const signers = await ethers.getSigners();
+  const deployer = signers[0];
+  const operator = signers[1] ?? deployer; // fall back to deployer if no OPERATOR_KEY
   console.log("Deployer:", deployer.address);
   console.log("Operator:", operator.address);
 
@@ -34,9 +36,11 @@ async function main() {
   console.log("Pool factory set to registry.");
 
   // Write the deployment manifest.
+  const network = await ethers.provider.getNetwork();
+  const chainId = Number(network.chainId);
   const out = {
-    network: (await ethers.provider.getNetwork()).name || "localhost",
-    chainId: Number((await ethers.provider.getNetwork()).chainId),
+    network: network.name || "localhost",
+    chainId,
     contracts: {
       StakingPool: poolAddr,
       MarketplaceRegistry: regAddr
@@ -45,7 +49,15 @@ async function main() {
     deployer: deployer.address,
     deployedAt: new Date().toISOString()
   };
+
+  // Always write deployment.json (used by frontend for local dev).
+  // For testnet also write a chain-specific file so local deployment isn't overwritten.
   fs.writeFileSync(path.join(__dirname, "..", "deployment.json"), JSON.stringify(out, null, 2));
+  if (chainId !== 31337) {
+    const sepoliaFile = path.join(__dirname, "..", `deployment.${chainId}.json`);
+    fs.writeFileSync(sepoliaFile, JSON.stringify(out, null, 2));
+    console.log(`Wrote deployment.${chainId}.json`);
+  }
   console.log("Wrote deployment.json");
 }
 

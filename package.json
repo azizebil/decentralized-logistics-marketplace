@@ -8,6 +8,7 @@
     "test": "hardhat test",
     "node": "hardhat node",
     "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
     "demo": "hardhat run scripts/demo-end-to-end.js --network localhost",
     "demo:frontend": "hardhat run scripts/frontend-demo.js --network localhost",
     "frontend": "node frontend/server.js",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@playwright/test": "^1.60.0",
     "chai": "^4.3.10",
     "hardhat": "^2.22.0",
     "solc": "^0.8.24"

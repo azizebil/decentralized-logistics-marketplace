@@ -1,0 +1,11 @@
+{
+  "network": "sepolia",
+  "chainId": 11155111,
+  "contracts": {
+    "StakingPool": "0xD3a16FA31Df5054fA62212FCae16f81AF945bEA2",
+    "MarketplaceRegistry": "0x526B503aaF9dFc75c612FD383A6AAA4C85578237"
+  },
+  "operator": "0x6d38489d4f29418c9CA379e2501eE177fBF5Cf38",
+  "deployer": "0x6d38489d4f29418c9CA379e2501eE177fBF5Cf38",
+  "deployedAt": "2026-06-07T18:10:49.242Z"
+}
