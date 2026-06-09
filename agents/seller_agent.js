@@ -80,18 +80,17 @@ async function fetchPolicy(registry, sellerAddress) {
 // ── LLM commentary ───────────────────────────────────────────────────────────
 
 async function llmExplain(decision, bids) {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": key,
-        "anthropic-version": "2023-06-01"
+        "authorization": `Bearer ${key}`
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "gpt-4o-mini",
         max_tokens: 300,
         messages: [{
           role: "user",
@@ -108,7 +107,7 @@ async function llmExplain(decision, bids) {
       })
     });
     const j = await r.json();
-    return j.content?.[0]?.text ?? null;
+    return j.choices?.[0]?.message?.content ?? null;
   } catch (e) {
     console.error("LLM explainer error:", e.message);
     return null;

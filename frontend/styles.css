@@ -40,6 +40,7 @@ body {
 }
 
 button, input, select { font: inherit; }
+[hidden] { display: none !important; }
 
 p, h1, h2, h3, h4 { margin: 0; }
 

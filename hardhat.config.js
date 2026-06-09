@@ -48,5 +48,8 @@ module.exports = {
     tests: "./test",
     artifacts: "./artifacts",
     cache: "./cache"
+  },
+  mocha: {
+    spec: "test/*.test.js"
   }
 };

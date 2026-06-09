@@ -183,7 +183,7 @@ function updateWalletUI() {
     $("walletNetwork").textContent = networkName(chainId);
     $("networkStatus").textContent = `${networkName(chainId)} · ${short(address)}`;
 
-    const onSupportedNet = chainId === 31337n || chainId === 11155111n;
+    const onSupportedNet = BigInt(chainId) === 31337n || BigInt(chainId) === 11155111n;
     $("wrongNetBar").hidden = onSupportedNet;
   }
 
@@ -201,7 +201,7 @@ async function connectMetaMask() {
   }
   try {
     const mmProvider = new ethers.BrowserProvider(window.ethereum);
-    await mmProvider.send("eth_requestAccounts", []);
+    await mmProvider.send("wallet_requestPermissions", [{ eth_accounts: {} }]);
     const mmSigner  = await mmProvider.getSigner();
     const network   = await mmProvider.getNetwork();
     const address   = await mmSigner.getAddress();
@@ -318,6 +318,8 @@ async function loadDemoState() {
     if (!response.ok) return;
     const demo = await response.json();
     if (!demo.deliveryId) return;
+    // Don't overwrite a delivery ID the user already has in this session
+    if ($("deliveryId").value.trim()) return;
     $("deliveryId").value   = demo.deliveryId;
     $("vaultAddress").value = demo.vault      || "";
     $("pickupCode").value   = demo.pickupCode || "";
@@ -348,6 +350,16 @@ async function waitTx(tx, label) {
 function setDelivery(id) {
   $("deliveryId").value = id;
   localStorage.setItem("dlm.deliveryId", id);
+  const saved = localStorage.getItem(`dlm.codes.${id}`);
+  if (saved) {
+    try {
+      const codes = JSON.parse(saved);
+      $("pickupCode").value   = codes.pickupCode  || "";
+      $("pickupNonce").value  = codes.nonceP       || "";
+      $("dropoffCode").value  = codes.dropoffCode  || "";
+      $("dropoffNonce").value = codes.nonceD       || "";
+    } catch {}
+  }
 }
 
 function setVaultAddress(address) {
@@ -363,7 +375,13 @@ async function refreshRequests() {
   const addr = $("registryAddress").value.trim();
   if (!state.provider || !ethers.isAddress(addr)) return;
   const readRegistry = new ethers.Contract(addr, REGISTRY_ABI, state.provider);
-  const events = await readRegistry.queryFilter(readRegistry.filters.RequestOpened(), 0, "latest");
+
+  let events = [];
+  try {
+    const latest = await state.provider.getBlockNumber();
+    events = await readRegistry.queryFilter(readRegistry.filters.RequestOpened(), latest - 8, latest);
+  } catch { /* Alchemy free tier block range limit — fall through */ }
+
   state.requests = events.map(e => ({
     id:           e.args.deliveryId,
     seller:       e.args.seller,
@@ -373,12 +391,20 @@ async function refreshRequests() {
     bidDeadline:  e.args.bidDeadline
   })).reverse();
 
+  // Always show the saved delivery ID at the top so the user can re-select it
+  const savedId = localStorage.getItem("dlm.deliveryId");
+  if (savedId && !state.requests.find(r => r.id === savedId)) {
+    state.requests.unshift({ id: savedId, _pinned: true });
+  }
+
   $("requestsList").innerHTML = "";
   for (const r of state.requests.slice(0, 12)) {
     const el = document.createElement("button");
     el.type = "button";
     el.className = "item";
-    el.innerHTML = `<strong>${short(r.id)}</strong>${ethers.formatEther(r.declaredValue)} ETH value · max fee ${ethers.formatEther(r.maxPrice)} ETH`;
+    el.innerHTML = r._pinned
+      ? `<strong>${short(r.id)}</strong><span style="opacity:0.6">current delivery</span>`
+      : `<strong>${short(r.id)}</strong>${ethers.formatEther(r.declaredValue)} ETH value · max fee ${ethers.formatEther(r.maxPrice)} ETH`;
     el.addEventListener("click", async () => {
       setDelivery(r.id);
       await refreshDetails();
@@ -401,10 +427,10 @@ async function refreshDetails() {
     buyer:            r.buyer,
     mailbox:          r.mailbox,
     pool:             r.pool,
-    declaredValue:    `${ethers.formatEther(r.declaredValue)} ETH`,
-    maxPrice:         `${ethers.formatEther(r.maxPrice)} ETH`,
-    maxDeadline:      dateOf(r.maxDeadline),
-    bidDeadline:      dateOf(r.bidDeadline),
+    declaredValue:    r.declaredValue,
+    maxPrice:         r.maxPrice,
+    maxDeadline:      r.maxDeadline,
+    bidDeadline:      r.bidDeadline,
     stage:            STAGES[Number(r.stage)],
     preferTrusted:    r.preferTrusted,
     disputeWindow:    `${r.disputeWindow}s`,
@@ -473,15 +499,22 @@ async function openRequest() {
 }
 
 async function publishHashes() {
-  const id          = selectedId();
-  const pickupCode  = ethers.toUtf8Bytes(`PICKUP-${ethers.hexlify(ethers.randomBytes(8))}`);
-  const dropoffCode = ethers.toUtf8Bytes(`DROPOFF-${ethers.hexlify(ethers.randomBytes(8))}`);
-  const nonceP      = ethers.id(`p-${Date.now()}-${Math.random()}`);
-  const nonceD      = ethers.id(`d-${Date.now()}-${Math.random()}`);
-  const pickupHash  = ethers.keccak256(ethers.concat([pickupCode, id, nonceP]));
-  const dropoffHash = ethers.keccak256(ethers.concat([dropoffCode, id, nonceD]));
-  const codes = { deliveryId: id, pickupCode: ethers.hexlify(pickupCode), dropoffCode: ethers.hexlify(dropoffCode), nonceP, nonceD, pickupHash, dropoffHash };
-  localStorage.setItem(`dlm.codes.${id}`, format(codes));
+  const id = selectedId();
+  // If codes already exist for this delivery, reuse them (don't regenerate)
+  const existing = localStorage.getItem(`dlm.codes.${id}`);
+  let codes;
+  if (existing) {
+    codes = JSON.parse(existing);
+  } else {
+    const pickupCode  = ethers.toUtf8Bytes(`PICKUP-${ethers.hexlify(ethers.randomBytes(8))}`);
+    const dropoffCode = ethers.toUtf8Bytes(`DROPOFF-${ethers.hexlify(ethers.randomBytes(8))}`);
+    const nonceP      = ethers.id(`p-${Date.now()}-${Math.random()}`);
+    const nonceD      = ethers.id(`d-${Date.now()}-${Math.random()}`);
+    const pickupHash  = ethers.keccak256(ethers.concat([pickupCode, id, nonceP]));
+    const dropoffHash = ethers.keccak256(ethers.concat([dropoffCode, id, nonceD]));
+    codes = { deliveryId: id, pickupCode: ethers.hexlify(pickupCode), dropoffCode: ethers.hexlify(dropoffCode), nonceP, nonceD, pickupHash, dropoffHash };
+    localStorage.setItem(`dlm.codes.${id}`, format(codes));
+  }
   $("pickupCode").value  = codes.pickupCode;
   $("pickupNonce").value = codes.nonceP;
   $("dropoffCode").value = codes.dropoffCode;
@@ -496,7 +529,7 @@ async function publishHashes() {
         <div><span>Dropoff nonce</span><code>${escapeHtml(codes.nonceD)}</code></div>
       </div>
     </div>`;
-  await waitTx(await registry("sellerAccount").publishHashes(id, pickupHash, dropoffHash), "Publish hashes");
+  await waitTx(await registry("sellerAccount").publishHashes(id, codes.pickupHash, codes.dropoffHash), "Publish hashes");
 }
 
 async function loadBids() {
@@ -602,10 +635,10 @@ async function aiMailboxConfirm() {
     body: JSON.stringify({ rpcUrl, vaultAddr, code, nonce })
   });
   const data = await res.json();
-  if (!res.ok || data.error) { fail(new Error(data.error || "mailbox-confirm failed")); return; }
+  if (!res.ok || data.error) { fail(new Error(data.reason ? `${data.error}: ${data.reason}` : (data.error || "mailbox-confirm failed"))); return; }
 
   log("AI Mailbox — delivery confirmed ✓",
-    `Tx: ${data.txHash}\nSensors: weight ${data.sensors.weightGrams}g, lid ${data.sensors.lidClosed ? "closed" : "open"}.`
+    `Tx: ${data.txHash}\nSensors: weight ${data.sensors.weightGrams}g, lid ${data.sensors.lidClosed ? "closed" : "open"}.\nAI reasoning: ${data.aiReason}`
   );
   await refreshAll();
 }
@@ -622,9 +655,28 @@ async function setAgent() {
 // ── Courier actions ───────────────────────────────────────────────────────────
 
 async function admitCourier() {
-  // Admit uses the pool operator key — always HD wallet idx 1 (dev function).
-  const courierAddr = state.mm.active ? state.mm.address : wallet(Number($("courierAccount").value)).address;
-  await waitTx(await poolAsOperator().admitMember(courierAddr), "Admit courier");
+  const courierAddr = state.mm.active
+    ? state.mm.address
+    : wallet(Number($("courierAccount").value)).address;
+
+  if (state.mm.active) {
+    // On Sepolia: server uses DEPLOYER_KEY to call admitMember server-side
+    log("Auto-admitting courier via server key…", "", "info");
+    const resp = await fetch("/api/admin/admit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        courierAddress: courierAddr,
+        rpcUrl:         $("rpcUrl").value.trim(),
+        poolAddress:    $("poolAddress").value.trim()
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || "admit failed");
+    log("Courier admitted (server-signed)", `tx ${data.txHash}`, "ok");
+  } else {
+    await waitTx(await poolAsOperator().admitMember(courierAddr), "Admit courier");
+  }
 }
 
 async function stake() {
@@ -742,10 +794,10 @@ function renderDetails() {
     cards.push(card("Selected Delivery", [
       row("Progress",       statusPill(progress)),
       textRow("Delivery",   short(req.deliveryId)),
-      textRow("Value",      req.declaredValue),
-      textRow("Max fee",    req.maxPrice),
-      textRow("Bids close", req.bidDeadline),
-      textRow("Due by",     req.maxDeadline),
+      textRow("Value",      ethers.formatEther(req.declaredValue) + " ETH"),
+      textRow("Max fee",    ethers.formatEther(req.maxPrice) + " ETH"),
+      textRow("Bids close", dateOf(req.bidDeadline)),
+      textRow("Due by",     dateOf(req.maxDeadline)),
       textRow("Accepted bid", req.stage === "Open" ? "Not selected yet" : `Bid ${req.acceptedBidIndex}`),
       textRow("Trusted courier", req.preferTrusted ? "Preferred" : "Not required")
     ]));

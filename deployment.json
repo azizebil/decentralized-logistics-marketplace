@@ -1,11 +1,11 @@
 {
-  "network": "sepolia",
-  "chainId": 11155111,
+  "network": "localhost",
+  "chainId": 31337,
   "contracts": {
-    "StakingPool": "0xD3a16FA31Df5054fA62212FCae16f81AF945bEA2",
-    "MarketplaceRegistry": "0x526B503aaF9dFc75c612FD383A6AAA4C85578237"
+    "StakingPool": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+    "MarketplaceRegistry": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
   },
-  "operator": "0x6d38489d4f29418c9CA379e2501eE177fBF5Cf38",
-  "deployer": "0x6d38489d4f29418c9CA379e2501eE177fBF5Cf38",
-  "deployedAt": "2026-06-07T18:10:49.242Z"
+  "operator": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "deployedAt": "2026-06-08T21:20:16.503Z"
 }

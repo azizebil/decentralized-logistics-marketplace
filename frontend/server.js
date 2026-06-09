@@ -41,14 +41,14 @@ function agentSigner(keyEnv, provider) {
 }
 
 async function llmExplain(decision, bids) {
-  const key = process.env.ANTHROPIC_API_KEY;
+  const key = process.env.OPENAI_API_KEY;
   if (!key) return null;
   try {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+      headers: { "content-type": "application/json", "authorization": `Bearer ${key}` },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "gpt-4o-mini",
         max_tokens: 300,
         messages: [{
           role: "user",
@@ -64,7 +64,7 @@ async function llmExplain(decision, bids) {
       })
     });
     const j = await r.json();
-    return j.content?.[0]?.text ?? null;
+    return j.choices?.[0]?.message?.content ?? null;
   } catch { return null; }
 }
 
@@ -96,9 +96,65 @@ async function handleAgentRank(req, res) {
   send(res, 200, JSON.stringify({ decision, explanation }), types[".json"]);
 }
 
+async function handleAdmitCourier(req, res) {
+  const body = await readBody(req);
+  const { courierAddress, rpcUrl, poolAddress } = body;
+  if (!courierAddress || !ethers.isAddress(courierAddress)) {
+    return send(res, 400, JSON.stringify({ error: "missing or invalid courierAddress" }), types[".json"]);
+  }
+
+  const deployerKey = process.env.DEPLOYER_KEY;
+  if (!deployerKey || !/^(0x)?[0-9a-fA-F]{64}$/.test(deployerKey.trim())) {
+    return send(res, 500, JSON.stringify({ error: "DEPLOYER_KEY not configured on server" }), types[".json"]);
+  }
+
+  const rpc = rpcUrl || process.env.SEPOLIA_RPC_URL || "http://127.0.0.1:8545";
+  const provider = new ethers.JsonRpcProvider(rpc);
+  const deployer = new ethers.Wallet(deployerKey.trim(), provider);
+
+  const POOL_ABI = ["function admitMember(address member) external"];
+  const pool = new ethers.Contract(poolAddress, POOL_ABI, deployer);
+
+  const tx   = await pool.admitMember(courierAddress);
+  const rcpt = await tx.wait();
+  send(res, 200, JSON.stringify({ txHash: rcpt.hash, admitted: courierAddress }), types[".json"]);
+}
+
+async function mailboxAiDecision(sensors) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return { confirm: true, reason: "AI unavailable — sensor check passed." };
+  try {
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "content-type": "application/json", "authorization": `Bearer ${key}` },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        max_tokens: 150,
+        messages: [{
+          role: "system",
+          content:
+            "You are an autonomous mailbox agent with a secure element. " +
+            "You receive sensor readings and decide whether a package has been delivered. " +
+            "Respond with valid JSON only: { \"confirm\": true/false, \"reason\": \"one sentence\" }"
+        }, {
+          role: "user",
+          content:
+            `Sensor readings: weight=${sensors.weightGrams}g, lid=${sensors.lidClosed ? "closed" : "open"}. ` +
+            `A weight above 50g with the lid closed indicates a package is present. ` +
+            `Should I confirm delivery and release payment to the courier?`
+        }]
+      })
+    });
+    const j = await r.json();
+    const text = j.choices?.[0]?.message?.content ?? "";
+    return JSON.parse(text);
+  } catch {
+    return { confirm: sensors.ok, reason: "AI parse error — falling back to sensor check." };
+  }
+}
+
 async function handleMailboxConfirm(req, res) {
   const body = await readBody(req);
-  // body: { rpcUrl, vaultAddr, code, nonce, mailboxKey }
   const { rpcUrl, vaultAddr, code, nonce, mailboxKey } = body;
   if (!vaultAddr || !code || !nonce) {
     return send(res, 400, JSON.stringify({ error: "missing vaultAddr/code/nonce" }), types[".json"]);
@@ -110,20 +166,22 @@ async function handleMailboxConfirm(req, res) {
   }
 
   const sensors = readSensors();
-  if (!sensors.ok) {
-    return send(res, 400, JSON.stringify({ error: "sensor anomaly, refusing to sign", sensors }), types[".json"]);
+  const aiDecision = await mailboxAiDecision(sensors);
+
+  if (!aiDecision.confirm) {
+    return send(res, 400, JSON.stringify({ error: "AI agent refused delivery", reason: aiDecision.reason, sensors }), types[".json"]);
   }
 
-  const provider = new ethers.JsonRpcProvider(rpcUrl || "http://127.0.0.1:8545");
+  const provider = new ethers.JsonRpcProvider(rpcUrl || process.env.SEPOLIA_RPC_URL || "http://127.0.0.1:8545");
   const VAULT_ABI = require(path.resolve(__dirname, "../artifacts/contracts/DeliveryVault.sol/DeliveryVault.json")).abi;
-  const signer = agentSigner(mailboxKey || process.env.MAILBOX_KEY, provider);
+  const signer = agentSigner(mailboxKey || process.env.MAILBOX_KEY || process.env.DEPLOYER_KEY, provider);
   const vault  = new ethers.Contract(vaultAddr, VAULT_ABI, signer);
 
   const tx   = await vault.confirmDelivery(code, nonce);
   const rcpt = await tx.wait();
   st.lastSign = Date.now();
   saveMailboxState(st);
-  send(res, 200, JSON.stringify({ txHash: rcpt.hash, sensors }), types[".json"]);
+  send(res, 200, JSON.stringify({ txHash: rcpt.hash, sensors, aiReason: aiDecision.reason }), types[".json"]);
 }
 
 const types = {
@@ -153,6 +211,10 @@ const server = http.createServer((req, res) => {
   }
   if (req.method === "POST" && url.pathname === "/api/agent/mailbox-confirm") {
     return handleMailboxConfirm(req, res).catch(e =>
+      send(res, 500, JSON.stringify({ error: e.message }), types[".json"]));
+  }
+  if (req.method === "POST" && url.pathname === "/api/admin/admit") {
+    return handleAdmitCourier(req, res).catch(e =>
       send(res, 500, JSON.stringify({ error: e.message }), types[".json"]));
   }
 
