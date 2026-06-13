@@ -468,7 +468,7 @@ $\alpha$ & Reputation weight & $0$ if \textit{preferTrusted} unchecked; $1.5$ ot
 \end{tabular}
 \end{center}
 
-Hard filters (maxPrice, maxDeadline) eliminate ineligible bids \emph{before} scoring. The LLM commentary (optional, via Anthropic API) can explain the winner but cannot change it.
+Hard filters (maxPrice, maxDeadline) eliminate ineligible bids \emph{before} scoring. The LLM commentary (via OpenAI GPT-4o-mini) can explain the winner but cannot change it — the decision is fully determined by the formula before the model is consulted.
 
 % =============================================================================
 \section{Agent Implementation}
@@ -689,12 +689,53 @@ The project includes a browser-based GUI console (\texttt{frontend/index.html}) 
 
 \subsection{AI Agent Buttons}
 
-The frontend exposes two AI-assisted actions that call the server-side agent API:
+The frontend exposes two AI-assisted actions that call the server-side agent API, both powered by the OpenAI GPT-4o-mini model.
 
-\begin{itemize}
-    \item \textbf{✦ AI Pick Best Bid:} calls \texttt{POST /api/agent/rank} with the loaded bids. The server runs \texttt{SellerAgent.rank()}, optionally calls the Claude API for a plain-English explanation, and returns the winner index. The bid index field auto-fills and the explanation appears in a purple card.
-    \item \textbf{✦ AI Auto-Confirm (Mailbox Agent):} calls \texttt{POST /api/agent/mailbox-confirm}. The server checks sensor state, rate-limits, and submits the \texttt{confirmDelivery} transaction on the user's behalf.
-\end{itemize}
+\subsubsection{AI Pick Best Bid}
+
+Calls \texttt{POST /api/agent/rank} with the loaded bids. The server runs the deterministic \texttt{SellerAgent.rank()} formula, then sends the bids and winner to GPT-4o-mini for a plain-English explanation. The bid index auto-fills and the explanation appears in a purple card below the bids list.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\linewidth]{screenshots/ai-pick-bid-ui.png}
+    \caption{\textbf{✦ AI Pick Best Bid} button (purple) in the Seller panel. After clicking, GPT-4o-mini explains the winning bid selection.}
+    \label{fig:aipick}
+\end{figure}
+
+\textbf{Sample GPT-4o-mini response} (two courier bids: Courier~1 at 0.003~ETH / 3600~s / rep~7500, Courier~2 at 0.001~ETH / 1800~s / rep~9500):
+
+\begin{mdframed}[backgroundcolor=blue!4, linecolor=blue!30]
+\small\itshape
+``The winning bid was chosen based on the formula score = $r^\alpha$ / ($t \times p$), where $r$ represents the reputation score, $t$ is the promised time, and $p$ is the price. Bid~[1] had a higher reputation score (9500) and a lower price (0.001~ETH) compared to Bid~[0] (reputation 7500 and price 0.003~ETH), which resulted in a more favourable score when applying the formula, despite both bids having similar promised times. This highlights the importance of balancing reputation and cost; a higher reputation can sometimes offset the differences in promised time, making it a more appealing choice overall for the logistics marketplace. Therefore, Bid~[1] was chosen as the winning bid due to its better overall score calculation.''
+\end{mdframed}
+
+\subsubsection{AI Auto-Confirm (Mailbox Agent)}
+
+Calls \texttt{POST /api/agent/mailbox-confirm}. The server reads simulated sensor data (package weight, lid state), passes it to GPT-4o-mini for a delivery decision, and — if the AI confirms — submits \texttt{confirmDelivery(code, nonce)} on-chain using the dedicated \texttt{MAILBOX\_KEY}. The AI reasoning and sensor readings appear in the transaction log.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\linewidth]{screenshots/ai-mailbox-ui.png}
+    \caption{\textbf{✦ AI Auto-Confirm (Mailbox Agent)} button (purple) in the Buyer panel. The server uses GPT-4o-mini to decide whether sensor readings confirm package presence before submitting the on-chain transaction.}
+    \label{fig:aimailbox}
+\end{figure}
+
+\textbf{Sample GPT-4o-mini response} (sensor reading: weight = 250~g, lid = closed):
+
+\begin{mdframed}[backgroundcolor=blue!4, linecolor=blue!30]
+\small\itshape
+``The weight is above 50g with the lid closed, indicating a package is present.''
+\end{mdframed}
+
+The full log entry produced by the frontend after a successful mailbox confirmation:
+
+\begin{lstlisting}[language=bash, numbers=none, caption=Mailbox Agent log output]
+AI Mailbox -- delivery confirmed
+Tx: 0xc9e0cac9fd26b46a556dad68ceb0fb01a098791...
+Sensors: weight 250g, lid closed.
+AI reasoning: The weight is above 50g with the lid closed,
+indicating a package is present.
+\end{lstlisting}
 
 % =============================================================================
 \section{Testnet Deployment}
