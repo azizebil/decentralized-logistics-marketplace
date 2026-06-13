@@ -589,6 +589,13 @@ Pickup/dropoff codes are exchanged off-chain. If this channel is eavesdropped, a
 \textit{Scenario:} Attacker extracts the mailbox private key and confirms a fake delivery.
 
 \textit{Mitigation:} Preimage binding: even with the mailbox key, the attacker must supply the correct \texttt{(code, nonce)} pair such that \texttt{keccak256(code \| deliveryId \| nonce) = dropoffHash}. Without the off-chain dropoff code (known only to seller and buyer), this is computationally infeasible. Additionally, a dispute window between \texttt{Delivered} and \texttt{Finalized} lets the buyer's primary key freeze payout. \textit{Tested:} \texttt{rejects an incorrect preimage}, \texttt{allows buyer to dispute and arbiter to refund}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.75\linewidth]{screenshots/10b-dispute-window-open.png}
+    \caption{Dispute window open after mailbox confirmation — the Raise Dispute button is active and the vault is in \texttt{Delivered} state pending the 60-second window.}
+    \label{fig:dispute}
+\end{figure}
 \end{attackbox}
 
 % =============================================================================
@@ -681,7 +688,7 @@ The project includes a browser-based GUI console (\texttt{frontend/index.html}) 
     \hfill
     \begin{subfigure}[b]{0.48\linewidth}
         \includegraphics[width=\linewidth]{../test/screenshots/07-vault-status.png}
-        \caption{Vault status check showing PickedUp state.}
+        \caption{Vault status check showing Delivered, waiting for payout state.}
     \end{subfigure}
     \caption{Connection and vault status screens.}
     \label{fig:connection}
@@ -716,7 +723,7 @@ Calls \texttt{POST /api/agent/mailbox-confirm}. The server reads simulated senso
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.55\linewidth]{screenshots/ai-mailbox-ui.png}
-    \caption{\textbf{✦ AI Auto-Confirm (Mailbox Agent)} button (purple) in the Buyer panel. The server uses GPT-4o-mini to decide whether sensor readings confirm package presence before submitting the on-chain transaction.}
+    \caption{Transaction log output from the \textbf{✦ AI Auto-Confirm (Mailbox Agent)} after a successful confirmation. GPT-4o-mini sensor reasoning, the on-chain tx hash, and sensor readings are all visible.}
     \label{fig:aimailbox}
 \end{figure}
 
@@ -755,6 +762,13 @@ Contract & Sepolia Address \\
 \end{center}
 
 Contracts can be inspected on \href{https://sepolia.etherscan.io/address/0xD3a16FA31Df5054fA62212FCae16f81AF945bEA2}{Sepolia Etherscan}. \texttt{DeliveryVault} instances are deployed on-demand by the registry when a bid is accepted; each has its own address.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\linewidth]{screenshots/etherscan-sepolia.png}
+    \caption{Sepolia Etherscan showing verified on-chain transactions for the \texttt{MarketplaceRegistry} contract, including open request, publish hashes, accept bid, and finalize events from live demo runs.}
+    \label{fig:etherscan}
+\end{figure}
 
 The frontend automatically loads the correct deployment file based on the connected chain ID: \texttt{deployment.11155111.json} for Sepolia, \texttt{deployment.json} for local Hardhat.
 

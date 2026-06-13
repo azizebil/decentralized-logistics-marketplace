@@ -14,3 +14,7 @@ coverage.json
 
 typechain/
 
+*.tar.gz
+report.zip
+docs/overleaf_report.zip
+test-results/
